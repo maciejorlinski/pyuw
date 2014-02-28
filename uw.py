@@ -77,7 +77,7 @@ class Ssh():
 			if stderr:
 				print stderr.read()
 			if stdout:
-				print stdout.read()
+				return stdout.read()
 		else:
 			print "Error 21: Uzytkownik niezalogowany."
 	
@@ -123,7 +123,18 @@ class Ssh():
 				for mail in self.mailList:
 					stdin, stdout, stderr = self.client.exec_command('cd Mail/Maildir/new;cat ' + mail)
 					print "Wiadomosc nr ", mailCount, "/", len(self.mailList)
-					print stdout.read()
+                    
+					stdoutCopy=stdout.read()
+					mailLines=stdoutCopy.split('\n')
+					for line in mailLines:
+						if 'From: ' in line:
+							mailFrom=line
+						elif 'Subject: ' in line:
+							mailSubject=line
+						elif 'Date: ' in line:
+							mailDate=line
+					print mailDate + '\n' + mailFrom + '\n' + mailSubject
+					
 					mailCount+=1
 		else:
 			print "Error 31: Uzytkownik niezalogowany"
@@ -163,7 +174,7 @@ if __name__=="__main__":
 			SshClient.logIn()
 		if args.mail:
 			SshClient.checkMail()
-    #TODO: regex albo cos co pomoze wyciagnac tresc mejla i przedstawic go w czytelny sposob
-    #			SshClient.displayMail()
+			#TODO: regex albo cos co pomoze wyciagnac tresc mejla i przedstawic go w czytelny sposob
+			SshClient.displayMail()
     
 	remove('dummy')
