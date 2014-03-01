@@ -2,6 +2,10 @@ from twill.commands import *
 import paramiko
 from getpass import getpass
 
+#potrzebne w if __name__="__main__"
+import argparse
+from os import remove
+
 #Klasa do poruszania sie po usosie
 class Usos():
 	def __init__(self):
@@ -17,7 +21,7 @@ class Usos():
 		fv('1','username',self.login)
 		fv('1','password',self.password)
 		try:
-			dummy=submit('3')
+			submit('3')
 			self.loggedIn=True
             
 			#"Easier to ask for forgiveness than permission"
@@ -141,9 +145,6 @@ class Ssh():
 
 #Skrypt
 if __name__=="__main__":
-	import argparse
-	from os import remove
-    
 	parser=argparse.ArgumentParser()
 	
 	parser.add_argument("--verbose", "-v", action="store_true")
@@ -174,7 +175,7 @@ if __name__=="__main__":
 			SshClient.logIn()
 		if args.mail:
 			SshClient.checkMail()
-			#TODO: regex albo cos co pomoze wyciagnac tresc mejla i przedstawic go w czytelny sposob
+			#TODO: dekodowanie znakow
 			SshClient.displayMail()
     
 	remove('dummy')
