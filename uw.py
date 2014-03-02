@@ -5,25 +5,32 @@ from getpass import getpass
 #potrzebne w if __name__="__main__"
 import argparse
 from os import remove
+import config
 
 #Klasa do poruszania sie po usosie
 class Usos():
 	def __init__(self):
 		self.loggedIn=False
-    
+	
 	#metoda logujaca
-	def logIn(self):
+	def logIn(self, pw=None, pesel=None):
 		#Wiem, global, brzydko ale trudno. Jeden global na skrypt ujdzie
 		global verbose
-		self.login=raw_input('PESEL: ')
-		self.password=getpass()
+		if not pesel:
+			self.login=raw_input('PESEL: ')
+		else:
+			self.login=pesel
+		if not pw:
+			self.password=getpass()
+		else:
+			self.password=pw
 		go('https://logowanie.uw.edu.pl/cas/login')
 		fv('1','username',self.login)
 		fv('1','password',self.password)
 		try:
 			submit('3')
 			self.loggedIn=True
-            
+			
 			#"Easier to ask for forgiveness than permission"
 			try:
 				verbose
@@ -50,20 +57,23 @@ class Ssh():
 		self.port=22
 		self.loggedIn=False
 		self.mailList=[]
-        
+		
 		self.client=paramiko.SSHClient()
 		self.client.load_system_host_keys()
 		self.client.set_missing_host_key_policy(paramiko.WarningPolicy)
-    
-	def logIn(self, pw=None):
+	
+	def logIn(self, login=None, pw=None):
 		global verbose
 		try:
-			self.login=raw_input('login: ')
+			if not login:
+				self.login=raw_input('login: ')
+			else:
+				self.login=login
 			if not pw:
 				self.password=getpass()
 			else:
 				self.password=pw
-            
+			
 			self.client.connect(self.host, username=self.login, password=self.password, port=self.port)
 			self.loggedIn=True
 			try:
@@ -74,7 +84,7 @@ class Ssh():
 				print "Ssh - zalogowano."
 		except:
 			print "Error 20: Logowanie nie powiodlo sie."
-    
+	
 	def execute(self, command):
 		if self.loggedIn:
 			stdin, stdout, stderr = self.client.exec_command(command)
@@ -98,13 +108,13 @@ class Ssh():
 					print "Nowa poczta!"
 				mailList=stdoutCopy.split('\n')
 				mailCount=1
-                
+				
 				for mail in mailList:
 					if mail!='':
 						print mailCount, mail
 						self.mailList.append(mail)
 					mailCount+=1
-            
+			
 			else:
 				try:
 					verbose
@@ -112,7 +122,7 @@ class Ssh():
 					verbose=True
 				if verbose:
 					print "Nie ma nowych wiadomosci"
-    
+	
 	def displayMail(self):
 		if self.loggedIn:
 			if self.mailList==[]:
@@ -127,7 +137,7 @@ class Ssh():
 				for mail in self.mailList:
 					stdin, stdout, stderr = self.client.exec_command('cd Mail/Maildir/new;cat ' + mail)
 					print "Wiadomosc nr ", mailCount, "/", len(self.mailList)
-                    
+					
 					stdoutCopy=stdout.read()
 					mailLines=stdoutCopy.split('\n')
 					for line in mailLines:
@@ -151,31 +161,37 @@ if __name__=="__main__":
 	parser.add_argument("--usos", "-u", action="store_true")
 	parser.add_argument("--ssh", "-s", action="store_true")
 	parser.add_argument("--mail", "-m", action="store_true")
-    
+	
+	parser.add_argument("--pesel", "-p")
+	parser.add_argument("--login", "-l")
+	parser.add_argument("--password", "-pw")
+	
 	args=parser.parse_args()
-    
-	verbose=args.verbose
-    
+	
+	#zmieniam konfiguracje nadpisujac niektore wartosci
+	for key, value in vars(args).items():
+		try:
+			if config.vars[key]==False and value==True:
+				config.vars[key]=True
+		except KeyError:
+			config.vars[key]=value
+	
+	verbose=config.vars['verbose']
+	
 	redirect_output('dummy')
-    
-	if args.usos:
+	
+	if config.vars['usos']:
+		UsosClient=Usos()
+		UsosClient.logIn(pesel=config.vars['pesel'], pw=config.vars['password'])
+	if config.vars['ssh']:
+		SshClient=Ssh()
 		try:
-			UsosClient=Usos()
+			SshClient.logIn(login=config.vars['login'], pw=UsosClient.password)
 		except NameError:
-			print "Error 42: Nie podano loginu lub hasla do usosa"
-		UsosClient.logIn()
-	if args.ssh:
-		try:
-			SshClient=Ssh()
-		except NameError:
-			print "Error 43: Nie podano loginu lub hasla do ssh"
-		try:
-			SshClient.logIn(pw=UsosClient.password)
-		except NameError:
-			SshClient.logIn()
-		if args.mail:
+			SshClient.logIn(login=config.vars['login'], pw=config.vars['password'])
+		if config.vars['mail']:
 			SshClient.checkMail()
 			#TODO: dekodowanie znakow
 			SshClient.displayMail()
-    
+	
 	remove('dummy')
